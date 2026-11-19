@@ -1,4 +1,4 @@
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant};
 
 use windows::Win32::Foundation::{HWND, RECT};
@@ -39,6 +39,8 @@ pub struct Controller {
     target_pid: Option<u32>,
     /// 抖音被挪到屏幕外之前的可见矩形
     target_restore: Option<RECT>,
+    /// 上一次 PEEK 时的窗口矩形，供 position = "remember" 使用
+    last_peek_rect: Option<RECT>,
     snapshot: Vec<MuteSnapshot>,
     expected_foreground: Option<HWND>,
     suppress_until: Instant,
@@ -56,6 +58,7 @@ impl Controller {
             target_window: None,
             target_pid: None,
             target_restore: None,
+            last_peek_rect: crate::state::load_layout(),
             snapshot: Vec::new(),
             expected_foreground: None,
             suppress_until: Instant::now(),
@@ -74,16 +77,40 @@ impl Controller {
             crate::state::clear();
         }
 
-        for event in receiver {
-            match event {
-                Event::Exit => {
+        loop {
+            match receiver.recv_timeout(Duration::from_millis(1000)) {
+                Ok(Event::Exit) => {
                     self.shutdown();
                     break;
                 }
-                other => self.handle(other),
+                Ok(other) => self.handle(other),
+                Err(RecvTimeoutError::Timeout) => self.tick(),
+                Err(RecvTimeoutError::Disconnected) => {
+                    self.shutdown();
+                    break;
+                }
             }
         }
         crate::app::request_exit();
+    }
+
+    /// 空闲时兜底检查：目标窗口被关掉时不能一直让游戏保持静音。
+    fn tick(&mut self) {
+        if self.phase != Phase::Peek {
+            return;
+        }
+
+        let target_alive = self
+            .target_window
+            .map(window::is_valid)
+            .unwrap_or(false);
+
+        if !target_alive {
+            crate::logline!("目标窗口已关闭或失效，自动结束 PEEK");
+            self.target_window = None;
+            self.target_pid = None;
+            self.leave_peek(Trigger::Manual);
+        }
     }
 
     fn handle(&mut self, event: Event) {
@@ -164,6 +191,10 @@ impl Controller {
             self.target_restore = Some(rect);
         }
         let peek_rect = self.compute_peek_rect(visible_rect.or(self.target_restore));
+        self.last_peek_rect = Some(peek_rect);
+        if self.config.layout.position == "remember" {
+            crate::state::save_layout(&peek_rect);
+        }
 
         if self.config.game.mute_on_peek && self.snapshot.is_empty() {
             if let Some(pid) = self.game_pid {
@@ -226,23 +257,22 @@ impl Controller {
 
     fn pause_target(&self, target: HWND, trigger: Trigger) -> bool {
         let method = self.config.pause.method.as_str();
-
-        match trigger {
-            Trigger::Hotkey => {
-                let still_foreground = window::foreground() == target;
-                if method != "smtc" && still_foreground && media::send_space() {
-                    return true;
-                }
-                self.pause_by_smtc(target)
-            }
-            Trigger::Manual => self.pause_by_smtc(target),
+        if method == "none" {
+            return false;
         }
-    }
 
-    fn pause_by_smtc(&self, target: HWND) -> bool {
-        if self.config.pause.method != "none" && media::try_pause_smtc(&self.config.target.process) {
+        // 媒体会话不依赖焦点，优先使用；没有会话时再退回键盘。
+        if method != "space" {
+            if let Some(paused) = media::try_pause_smtc(&self.config.target.process) {
+                return paused;
+            }
+        }
+
+        // 只有热键触发、且目标确实在前台时才发空格，避免误发给游戏。
+        if trigger == Trigger::Hotkey && window::foreground() == target && media::send_space() {
             return true;
         }
+
         crate::logline!("媒体会话不可用，尝试向目标窗口投递空格");
         media::post_space(target)
     }
@@ -388,7 +418,9 @@ impl Controller {
             "top-right" => (area.right - width - margin, area.top + margin),
             "top-left" => (area.left + margin, area.top + margin),
             "bottom-left" => (area.left + margin, area.bottom - height - margin),
-            "remember" => original
+            "remember" => self
+                .last_peek_rect
+                .or(original)
                 .map(|rect| (rect.left, rect.top))
                 .unwrap_or((area.right - width - margin, area.bottom - height - margin)),
             _ => (area.right - width - margin, area.bottom - height - margin),

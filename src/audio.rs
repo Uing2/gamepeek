@@ -72,7 +72,14 @@ impl AudioManager {
     pub fn restore(&self, snapshots: &[MuteSnapshot]) {
         for snapshot in snapshots {
             if let Err(err) = self.restore_one(snapshot) {
-                crate::logline!("还原音频失败 pid={} err={err:#}", snapshot.pid);
+                // 会话可能刚好在重建，稍等后重试一次。
+                std::thread::sleep(std::time::Duration::from_millis(80));
+                if let Err(retry_err) = self.restore_one(snapshot) {
+                    crate::logline!(
+                        "还原音频失败 pid={} err={err:#} retry={retry_err:#}",
+                        snapshot.pid
+                    );
+                }
             }
         }
     }

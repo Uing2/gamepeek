@@ -23,16 +23,18 @@ pub fn send_space() -> bool {
 }
 
 /// 通过 Windows 媒体会话按音源暂停，不抢焦点。
-pub fn try_pause_smtc(keyword: &str) -> bool {
+/// 返回 None 表示没有找到该应用的媒体会话；Some(true) 表示本次执行了暂停；
+/// Some(false) 表示会话存在但当前不在播放。
+pub fn try_pause_smtc(keyword: &str) -> Option<bool> {
     use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
     use windows::Media::Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus;
 
     let keyword = keyword.trim_end_matches(".exe").to_lowercase();
     if keyword.is_empty() {
-        return false;
+        return None;
     }
 
-    let attempt = || -> anyhow::Result<bool> {
+    let attempt = || -> anyhow::Result<Option<bool>> {
         let manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()?.get()?;
         let sessions = manager.GetSessions()?;
 
@@ -46,15 +48,26 @@ pub fn try_pause_smtc(keyword: &str) -> bool {
             }
 
             let info = session.GetPlaybackInfo()?;
-            if info.PlaybackStatus()? == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing {
-                let _ = session.TryPauseAsync()?.get()?;
+            let status = info.PlaybackStatus()?;
+            if status != GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing {
+                return Ok(Some(false));
             }
-            return Ok(true);
+
+            session.TryPauseAsync()?.get()?;
+            let after = session.GetPlaybackInfo()?.PlaybackStatus()?;
+            crate::logline!(
+                "媒体会话暂停完成 aumid={} 状态={:?}",
+                aumid,
+                after
+            );
+            return Ok(Some(
+                after != GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing,
+            ));
         }
-        Ok(false)
+        Ok(None)
     };
 
-    attempt().unwrap_or(false)
+    attempt().unwrap_or(None)
 }
 
 /// SMTC 不可用时，直接向目标窗口投递按键消息。
