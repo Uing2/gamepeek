@@ -1,6 +1,6 @@
-[package]
+﻿[package]
 name = "gamepeek"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "在游戏与视频窗口之间一键切换，并自动静音/暂停"
 license = "MIT"
