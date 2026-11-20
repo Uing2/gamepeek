@@ -12,10 +12,10 @@ use windows::Win32::UI::WindowsAndMessaging::{
     GetWindowLongPtrW, GetWindowTextW, KillTimer, MessageBoxW, RegisterClassW, SendMessageW,
     SetForegroundWindow, SetTimer, SetWindowLongPtrW, SetWindowTextW, ShowWindow,
     BM_GETCHECK, BM_SETCHECK, BN_CLICKED, BS_AUTOCHECKBOX, BS_PUSHBUTTON, CB_ADDSTRING,
-    CB_GETCURSEL, CB_SETCURSEL, CBS_DROPDOWNLIST, GWLP_USERDATA, HMENU, MB_ICONERROR, MB_OK,
-    SW_SHOW, WM_CLOSE, WM_COMMAND, WM_DESTROY, WM_KEYDOWN, WM_SETFONT, WM_SYSKEYDOWN,
-    WM_TIMER, WNDCLASSW, WS_CAPTION, WS_CHILD, WS_OVERLAPPED, WS_SYSMENU, WS_TABSTOP, WS_VISIBLE,
-    WS_VSCROLL,
+    CB_GETCURSEL, CB_SETCURSEL, CBS_DROPDOWNLIST, GWLP_USERDATA, HMENU, ICON_BIG, ICON_SMALL,
+    MB_ICONERROR, MB_OK, SW_SHOW, WM_CLOSE, WM_COMMAND, WM_DESTROY, WM_KEYDOWN, WM_SETFONT,
+    WM_SETICON, WM_SYSKEYDOWN, WM_TIMER, WNDCLASSW, WS_CAPTION, WS_CHILD, WS_OVERLAPPED,
+    WS_SYSMENU, WS_TABSTOP, WS_VISIBLE, WS_VSCROLL,
 };
 
 use crate::config::Config;
@@ -336,6 +336,15 @@ pub fn open(_parent: HWND) {
     };
 
     build_ui(hwnd, instance);
+
+    unsafe {
+        if let Some(icon) = crate::icon::load(16) {
+            SendMessageW(hwnd, WM_SETICON, WPARAM(ICON_SMALL as usize), LPARAM(icon.0 as isize));
+        }
+        if let Some(icon) = crate::icon::load(32) {
+            SendMessageW(hwnd, WM_SETICON, WPARAM(ICON_BIG as usize), LPARAM(icon.0 as isize));
+        }
+    }
 
     unsafe {
         let _ = ShowWindow(hwnd, SW_SHOW);

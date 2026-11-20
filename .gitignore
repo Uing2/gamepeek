@@ -1,3 +1,4 @@
 /target
 /dist
+/assets/icons
 **/*.rs.bk

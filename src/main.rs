@@ -15,6 +15,7 @@ mod controller;
 mod diagnostics;
 mod foreground;
 mod hotkey;
+mod icon;
 mod media;
 mod settings;
 mod state;

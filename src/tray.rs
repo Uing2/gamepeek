@@ -29,7 +29,9 @@ fn icon_data(hwnd: HWND) -> NOTIFYICONDATAW {
         ..Default::default()
     };
 
-    data.hIcon = unsafe { LoadIconW(None, IDI_APPLICATION) }.unwrap_or_default();
+    data.hIcon = crate::icon::load(16)
+        .or_else(|| unsafe { LoadIconW(None, IDI_APPLICATION) }.ok())
+        .unwrap_or_default();
 
     let wide = to_wide(TIP);
     let len = wide.len().min(data.szTip.len());
