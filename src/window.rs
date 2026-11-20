@@ -58,7 +58,7 @@ pub fn title(hwnd: HWND) -> String {
     }
 }
 
-fn process_exe_name(hwnd: HWND) -> Option<String> {
+pub fn exe_name(hwnd: HWND) -> Option<String> {
     let pid = process_id(hwnd);
     if pid == 0 {
         return None;
@@ -110,7 +110,7 @@ unsafe extern "system" fn enum_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
     }
 
     let query = state.query;
-    let process_matched = process_exe_name(hwnd)
+    let process_matched = exe_name(hwnd)
         .map(|name| query.processes.iter().any(|want| want.eq_ignore_ascii_case(&name)))
         .unwrap_or(false);
 

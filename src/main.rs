@@ -16,6 +16,7 @@ mod diagnostics;
 mod foreground;
 mod hotkey;
 mod media;
+mod settings;
 mod state;
 mod tray;
 mod util;

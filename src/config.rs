@@ -164,6 +164,16 @@ pub fn log_path() -> PathBuf {
     data_dir().join("logs").join("gamepeek.log")
 }
 
+pub fn save(config: &Config) -> Result<()> {
+    let path = config_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).ok();
+    }
+    fs::write(&path, toml::to_string_pretty(config)?)
+        .with_context(|| format!("写入配置失败: {}", path.display()))?;
+    Ok(())
+}
+
 pub fn load_or_create() -> Result<Config> {
     let path = config_path();
     if let Some(parent) = path.parent() {

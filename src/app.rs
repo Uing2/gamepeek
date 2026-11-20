@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::atomic::{AtomicIsize, AtomicU32, Ordering};
 use std::sync::mpsc::{channel, Sender};
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 use anyhow::Result;
 use windows::core::{w, PCWSTR};
@@ -23,8 +23,60 @@ use crate::controller::{Controller, Event};
 use crate::util::to_wide;
 
 static SENDER: OnceLock<Sender<Event>> = OnceLock::new();
+static CONFIG: OnceLock<Mutex<config::Config>> = OnceLock::new();
 static MAIN_WINDOW: AtomicIsize = AtomicIsize::new(0);
 static TASKBAR_CREATED_MESSAGE: AtomicU32 = AtomicU32::new(0);
+
+pub fn current_config() -> config::Config {
+    CONFIG
+        .get()
+        .and_then(|mutex| mutex.lock().ok().map(|guard| guard.clone()))
+        .unwrap_or_default()
+}
+
+fn main_hwnd() -> Option<HWND> {
+    let raw = MAIN_WINDOW.load(Ordering::Relaxed);
+    if raw == 0 {
+        None
+    } else {
+        Some(HWND(raw as *mut core::ffi::c_void))
+    }
+}
+
+pub fn open_settings() {
+    if let Some(hwnd) = main_hwnd() {
+        crate::settings::open(hwnd);
+    }
+}
+
+/// 保存配置并立即生效：热键重注册、自启动同步、工作线程热加载。
+/// 热键注册失败时回滚到旧热键并返回错误，避免把用户锁在外面。
+pub fn apply_config(new_config: config::Config) -> anyhow::Result<()> {
+    let old_config = current_config();
+
+    if old_config.hotkey != new_config.hotkey {
+        if let Some(hwnd) = main_hwnd() {
+            crate::hotkey::unregister(hwnd);
+            if let Err(err) = crate::hotkey::register(hwnd, &new_config.hotkey) {
+                let _ = crate::hotkey::register(hwnd, &old_config.hotkey);
+                return Err(err);
+            }
+        }
+    }
+
+    crate::config::save(&new_config)?;
+    crate::autostart::apply(new_config.app.start_with_windows);
+
+    if let Some(mutex) = CONFIG.get() {
+        if let Ok(mut guard) = mutex.lock() {
+            *guard = new_config.clone();
+        }
+    }
+
+    send(Event::Reload(Box::new(new_config)));
+    crate::logline!("设置已保存");
+    Ok(())
+}
 
 pub fn request_exit() {
     let raw = MAIN_WINDOW.load(Ordering::Relaxed);
@@ -106,6 +158,7 @@ pub fn run() -> Result<()> {
     crate::diagnostics::disable_power_throttling();
 
     let config = config::load_or_create()?;
+    let _ = CONFIG.set(Mutex::new(config.clone()));
     if let Err(_err) = crate::diagnostics::init(&config::log_path()) {
         #[cfg(debug_assertions)]
         eprintln!("日志初始化失败: {_err}");
@@ -168,6 +221,11 @@ pub fn run() -> Result<()> {
     };
 
     crate::tray::add(hwnd);
+
+    // 便于创建快捷方式或调试时直接打开设置
+    if std::env::args().any(|arg| arg == "--settings") {
+        crate::settings::open(hwnd);
+    }
 
     let worker_config = config.clone();
     let worker = std::thread::Builder::new()

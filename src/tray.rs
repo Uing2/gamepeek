@@ -59,11 +59,12 @@ pub fn show_menu(hwnd: HWND, sender: &Sender<Event>) {
         };
 
         let _ = AppendMenuW(menu, MF_STRING, 1, w!("切换"));
+        let _ = AppendMenuW(menu, MF_STRING, 2, w!("设置…"));
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
-        let _ = AppendMenuW(menu, MF_STRING, 2, w!("打开配置"));
-        let _ = AppendMenuW(menu, MF_STRING, 3, w!("打开日志目录"));
+        let _ = AppendMenuW(menu, MF_STRING, 3, w!("打开配置"));
+        let _ = AppendMenuW(menu, MF_STRING, 4, w!("打开日志目录"));
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
-        let _ = AppendMenuW(menu, MF_STRING, 4, w!("退出"));
+        let _ = AppendMenuW(menu, MF_STRING, 5, w!("退出"));
 
         let mut point = POINT::default();
         let _ = GetCursorPos(&mut point);
@@ -85,9 +86,10 @@ pub fn show_menu(hwnd: HWND, sender: &Sender<Event>) {
             1 => {
                 let _ = sender.send(Event::Hotkey);
             }
-            2 => crate::app::open_path(&crate::config::config_path()),
-            3 => crate::app::open_path(&crate::config::data_dir().join("logs")),
-            4 => {
+            2 => crate::app::open_settings(),
+            3 => crate::app::open_path(&crate::config::config_path()),
+            4 => crate::app::open_path(&crate::config::data_dir().join("logs")),
+            5 => {
                 let _ = sender.send(Event::Exit);
             }
             _ => {}

@@ -13,6 +13,8 @@ use crate::window::{self, WindowQuery};
 pub enum Event {
     Hotkey,
     Foreground(i64),
+    /// 设置界面保存后热加载，不需要重启
+    Reload(Box<Config>),
     Exit,
 }
 
@@ -117,8 +119,29 @@ impl Controller {
         match event {
             Event::Hotkey => self.on_hotkey(),
             Event::Foreground(raw) => self.on_foreground(hwnd_from_i64(raw)),
+            Event::Reload(config) => self.on_reload(*config),
             Event::Exit => {}
         }
+    }
+
+    fn on_reload(&mut self, config: Config) {
+        let target_changed = config.target.process != self.config.target.process
+            || config.target.window_class != self.config.target.window_class
+            || config.target.window_title != self.config.target.window_title;
+        let game_changed = config.game.process != self.config.game.process;
+
+        self.config = config;
+
+        if target_changed {
+            self.target_window = None;
+            self.target_pid = None;
+        }
+        if game_changed {
+            self.game_window = None;
+            self.game_pid = None;
+        }
+
+        crate::logline!("配置已热加载");
     }
 
     fn on_hotkey(&mut self) {
@@ -175,7 +198,11 @@ impl Controller {
         let target = match self.resolve_target() {
             Some(hwnd) => hwnd,
             None => {
-                crate::logline!("未找到目标窗口，取消切换");
+                crate::logline!(
+                    "未找到目标窗口（process={}，title={}），取消切换",
+                    self.config.target.process,
+                    self.config.target.window_title
+                );
                 return;
             }
         };
