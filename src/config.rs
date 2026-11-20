@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+﻿use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -77,7 +77,7 @@ pub struct AppConfig {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            hotkey: "F8".into(),
+            hotkey: "Alt+C".into(),
             game: GameConfig::default(),
             target: TargetConfig::default(),
             layout: LayoutConfig::default(),
