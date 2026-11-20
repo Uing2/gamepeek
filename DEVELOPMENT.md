@@ -903,6 +903,8 @@ cargo build --release
 
 ### 15.3 启用步骤
 
+> 申请材料、英文邮件草稿和通过后的配置清单见 [docs/signpath-application.md](docs/signpath-application.md)。
+
 1. 仓库转为公开，确认根目录有 OSI 认可的许可证（本项目为 MIT）。
 2. 把仓库镜像到 GitHub（SignPath 不接受 Gitee 作为构建源）：
    - Gitee 仓库 → 管理 → 仓库镜像管理 → 推送镜像，填 GitHub 仓库地址和 token；或本地 `git remote add github ... && git push github main --tags`。
