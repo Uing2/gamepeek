@@ -417,8 +417,10 @@ fn create_edit(
     height: i32,
     id: i32,
     font: HFONT,
+    readonly: bool,
 ) -> HWND {
     const ES_AUTOHSCROLL: u32 = 0x0080;
+    const ES_READONLY: u32 = 0x0800;
     let rect = scale_rect(scale, x, y, width, height);
     let wide = to_wide(text);
 
@@ -428,7 +430,8 @@ fn create_edit(
             windows::core::w!("EDIT"),
             PCWSTR(wide.as_ptr()),
             windows::Win32::UI::WindowsAndMessaging::WINDOW_STYLE(
-                WS_CHILD.0 | WS_VISIBLE.0 | WS_TABSTOP.0 | ES_AUTOHSCROLL,
+                WS_CHILD.0 | WS_VISIBLE.0 | WS_TABSTOP.0 | ES_AUTOHSCROLL
+                    | if readonly { ES_READONLY } else { 0 },
             ),
             rect.left,
             rect.top,
@@ -476,18 +479,19 @@ fn build_ui(hwnd: HWND, instance: windows::Win32::Foundation::HINSTANCE) {
         countdown: 0,
     };
 
-    let mut add_edit = |id: i32, text: &str, x: i32, y: i32, width: i32| {
-        let hwnd_edit = create_edit(hwnd, instance, scale, text, x, y, width, 30, id, font_body);
+    let mut add_edit = |id: i32, text: &str, x: i32, y: i32, width: i32, readonly: bool| {
+        let hwnd_edit = create_edit(hwnd, instance, scale, text, x, y, width, 30, id, font_body, readonly);
         state.edits.push((id, hwnd_edit));
     };
 
-    add_edit(ID_HOTKEY, &config.hotkey, 140, 92, 150);
-    add_edit(ID_GAME, &config.game.process, 140, 132, 220);
-    add_edit(ID_TARGET, &config.target.process, 140, 172, 220);
-    add_edit(ID_TITLE, &config.target.window_title, 140, 212, 220);
-    add_edit(ID_WIDTH, &config.layout.width.to_string(), 140, 294, 72);
-    add_edit(ID_HEIGHT, &config.layout.height.to_string(), 224, 294, 72);
-    add_edit(ID_MARGIN, &config.layout.margin.to_string(), 308, 294, 72);
+    // 前四项只读：热键只能通过「录制」修改，进程与标题只能通过「获取前台窗口」写入
+    add_edit(ID_HOTKEY, &config.hotkey, 140, 92, 150, true);
+    add_edit(ID_GAME, &config.game.process, 140, 132, 220, true);
+    add_edit(ID_TARGET, &config.target.process, 140, 172, 220, true);
+    add_edit(ID_TITLE, &config.target.window_title, 140, 212, 220, true);
+    add_edit(ID_WIDTH, &config.layout.width.to_string(), 140, 294, 72, false);
+    add_edit(ID_HEIGHT, &config.layout.height.to_string(), 224, 294, 72, false);
+    add_edit(ID_MARGIN, &config.layout.margin.to_string(), 308, 294, 72, false);
 
     state.buttons.push(Btn {
         id: ID_CAPTURE,
