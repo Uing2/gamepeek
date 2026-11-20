@@ -29,7 +29,7 @@ GAME 态                          PEEK 态
 
 ## 使用
 
-1. 从 [Releases](https://gitee.com/junk666/gamepeek/releases) 下载已构建的 `gamepeek.exe`，或按下文自行编译，放到任意目录运行。
+1. 从 [Releases](https://gitee.com/junk666/gamepeek/releases) 下载已构建的 `gamepeek.exe`，或按下文自行编译，放到任意目录运行。GitHub 镜像：[Uing2/gamepeek](https://github.com/Uing2/gamepeek)。
 2. 托盘出现图标后即可使用：
    - 左键单击或按 `Alt+W`：切换
    - 右键：切换、设置、打开配置、打开日志目录、退出

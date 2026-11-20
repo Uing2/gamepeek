@@ -1,4 +1,4 @@
-# SignPath Foundation 申请材料
+﻿# SignPath Foundation 申请材料
 
 > 目标：为 GamePeek 的 Windows 可执行文件申请免费代码签名，消除 Edge / SmartScreen 的“未知发布者”拦截。
 > 官方入口：<https://signpath.org/apply>，表格填写后发送至 `oss-support@signpath.org`。
@@ -20,11 +20,11 @@
 ## 2. 先把仓库镜像到 GitHub
 
 1. 在 GitHub 新建一个**公开空仓库**（不要勾选 README / .gitignore / license），假设地址为
-   `https://github.com/<你的账号>/gamepeek`。
+   `https://github.com/Uing2/gamepeek`。
 2. 本地添加远端并推送（在 `GamePeek` 目录执行）：
 
 ```powershell
-git remote add github https://github.com/<你的账号>/gamepeek.git
+git remote add github https://github.com/Uing2/gamepeek.git
 git push github main --tags
 ```
 
@@ -60,7 +60,7 @@ I would like to apply for free code signing for an open-source Windows utility.
 
 Project name: GamePeek
 Repository (public): https://gitee.com/junk666/gamepeek
-Mirror (public): https://github.com/<your-account>/gamepeek
+Mirror (public): https://github.com/Uing2/gamepeek
 License: MIT (OSI-approved), see LICENSE in the repository root
 Maintainer: <your name>, <your email>
 
