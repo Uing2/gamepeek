@@ -2,6 +2,8 @@
 
 > 目标：为 GamePeek 的 Windows 可执行文件申请免费代码签名，消除 Edge / SmartScreen 的“未知发布者”拦截。
 > 官方入口：<https://signpath.org/apply>，表格填写后发送至 `oss-support@signpath.org`。
+>
+> 注意：联系邮箱不写入本仓库，避免被爬虫抓取；实际发送时使用申请人的个人邮箱。
 
 ## 1. 资格自查
 
