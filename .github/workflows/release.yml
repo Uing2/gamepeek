@@ -1,0 +1,80 @@
+name: Release
+
+# 打 tag（例如 v0.2.0）时构建、签名并发布。
+# 未配置 SignPath 密钥时会自动跳过签名，仍能产出未签名版本。
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+      SIGNPATH_ORGANIZATION_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+      SIGNPATH_PROJECT_SLUG: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+      SIGNPATH_POLICY_SLUG: ${{ vars.SIGNPATH_POLICY_SLUG }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (MSVC)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Test
+        run: cargo test --locked
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Upload unsigned artifact
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: gamepeek-unsigned
+          path: target/release/gamepeek.exe
+          if-no-files-found: error
+
+      # 私钥始终在 SignPath 的 HSM 中，CI 只负责提交构建产物。
+      - name: Submit signing request
+        if: env.SIGNPATH_API_TOKEN != '' && env.SIGNPATH_ORGANIZATION_ID != ''
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.upload.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Collect artifact and checksums
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          if (Test-Path "signed/gamepeek.exe") {
+            Copy-Item "signed/gamepeek.exe" "dist/gamepeek.exe"
+            Write-Host "使用已签名产物"
+          } else {
+            Copy-Item "target/release/gamepeek.exe" "dist/gamepeek.exe"
+            Write-Host "未配置签名，使用未签名产物"
+          }
+          $hash = (Get-FileHash "dist/gamepeek.exe" -Algorithm SHA256).Hash
+          "SHA256  $hash  gamepeek.exe" | Out-File -Encoding ascii "dist/checksums.txt"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/gamepeek.exe
+            dist/checksums.txt
+          generate_release_notes: true

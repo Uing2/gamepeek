@@ -883,7 +883,44 @@ cargo build --release
 - 抖音多窗口选择（主窗 / 直播 / 小窗）
 - 安装包与代码签名
 
-## 15. 参考资料
+## 15. CI 与代码签名（SignPath）
+
+### 15.1 工作流
+
+| 文件 | 触发 | 作用 |
+|---|---|---|
+| `.github/workflows/ci.yml` | push / PR 到 main | `cargo check` + `cargo test` + 构建，上传未签名产物 |
+| `.github/workflows/release.yml` | 打 `v*` tag | 构建 → 提交 SignPath 签名 → 生成 SHA256 → 发布 Release |
+
+未配置签名密钥时，release 工作流会自动跳过签名步骤，仍然产出未签名 exe 和 `checksums.txt`，不会让流水线失败。
+
+### 15.2 为什么必须用 CI 签名
+
+签名私钥托管在 SignPath 的 HSM 中，不落到本地和仓库里。SignPath 只接受由 CI 构建出的产物，从而保证被签名的二进制确实来自仓库源码。工作流里先 `upload-artifact` 拿到 artifact id，再把它提交给签名服务，签好的文件写回 `signed/` 目录。
+
+### 15.3 启用步骤
+
+1. 仓库转为公开，确认根目录有 OSI 认可的许可证（本项目为 MIT）。
+2. 把仓库镜像到 GitHub（SignPath 不接受 Gitee 作为构建源）：
+   - Gitee 仓库 → 管理 → 仓库镜像管理 → 推送镜像，填 GitHub 仓库地址和 token；或本地 `git remote add github ... && git push github main --tags`。
+3. 在 SignPath 申请开源计划（Foundation），提交仓库地址、许可证和构建说明，等待人工审核。
+4. 审核通过后，在 SignPath 控制台创建 project 与 signing policy，记下：
+   - organization id
+   - project slug（默认 `gamepeek`）
+   - signing policy slug（例如 `release-signing`）
+   - 一个 API token
+5. 在 GitHub 仓库配置：
+   - Secrets：`SIGNPATH_API_TOKEN`、`SIGNPATH_ORGANIZATION_ID`
+   - Variables：`SIGNPATH_PROJECT_SLUG`、`SIGNPATH_POLICY_SLUG`
+6. 推送一个 tag 触发发布，检查 Release 里的 exe 是否带签名（`signtool verify /pa gamepeek.exe`）。
+
+### 15.4 注意
+
+- CI 使用 MSVC 工具链（GitHub 的 windows-latest 自带），与本地 GNU 工具链的产物功能一致，体积略有差异。
+- SignPath 的免费计划要求项目持续开源且构建可复现；如果后续改成闭源，需要改用付费方案或自购证书。
+- 自签名证书对普通用户无效，SmartScreen 仍会拦截，不要用它冒充正式签名。
+
+## 16. 参考资料
 
 - [PowerToys Always on Top](https://learn.microsoft.com/zh-cn/windows/powertoys/always-on-top)
 - [PowerToys 源码](https://github.com/microsoft/PowerToys)
