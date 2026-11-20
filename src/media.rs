@@ -70,6 +70,28 @@ pub fn try_pause_smtc(keyword: &str) -> Option<bool> {
     attempt().unwrap_or(None)
 }
 
+/// 带超时的媒体会话暂停。SMTC 首次调用可能阻塞较久，不能让它卡住切换流程。
+pub fn try_pause_smtc_with_timeout(keyword: &str, timeout: std::time::Duration) -> Option<bool> {
+    let key = keyword.to_string();
+    let (sender, receiver) = std::sync::mpsc::channel();
+
+    std::thread::spawn(move || {
+        let result = try_pause_smtc(&key);
+        let _ = sender.send(result);
+    });
+
+    match receiver.recv_timeout(timeout) {
+        Ok(result) => result,
+        Err(_) => {
+            crate::logline!(
+                "媒体会话响应超时（{}ms），改用键盘兜底",
+                timeout.as_millis()
+            );
+            None
+        }
+    }
+}
+
 /// SMTC 不可用时，直接向目标窗口投递按键消息。
 pub fn post_space(hwnd: HWND) -> bool {
     unsafe {

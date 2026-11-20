@@ -146,7 +146,19 @@ impl Controller {
 
     fn on_hotkey(&mut self) {
         let foreground = window::foreground();
-        if self.phase == Phase::Peek || self.is_target(foreground) {
+        let branch = if self.phase == Phase::Peek || self.is_target(foreground) {
+            "leave"
+        } else {
+            "enter"
+        };
+        crate::logline!(
+            "热键触发 分支={} phase={:?} 前台pid={}",
+            branch,
+            self.phase,
+            window::process_id(foreground)
+        );
+
+        if branch == "leave" {
             self.leave_peek(Trigger::Hotkey);
         } else {
             self.enter_peek();
@@ -255,6 +267,11 @@ impl Controller {
 
     fn leave_peek(&mut self, trigger: Trigger) {
         let stopwatch = Stopwatch::new();
+        crate::logline!("开始返回 GAME（触发={:?}）", trigger);
+
+        // 清除上一次进入时可能残留的抑制状态，避免吞掉真实的前台事件。
+        self.expected_foreground = None;
+        self.suppress_until = Instant::now();
 
         if let Some(target) = self.resolve_target() {
             let paused = self.pause_target(target, trigger);
@@ -288,24 +305,32 @@ impl Controller {
             return false;
         }
 
-        // 媒体会话不依赖焦点，优先使用；没有会话时再退回键盘。
+        let foreground = window::foreground();
+
+        // 热键返回时目标仍在前台，空格是最快的路径，先做它，避免 COM 调用拖慢返回。
+        if method != "smtc" && trigger == Trigger::Hotkey && foreground == target {
+            if media::send_space() {
+                return true;
+            }
+        }
+
+        // 失焦或空格失败时再走媒体会话，必须带超时。
         if method != "space" {
-            if let Some(paused) = media::try_pause_smtc(&self.config.target.process) {
+            let timeout = Duration::from_millis(self.config.pause.verify_timeout_ms.max(500));
+            if let Some(paused) = media::try_pause_smtc_with_timeout(&self.config.target.process, timeout) {
                 return paused;
             }
         }
 
-        // 只有热键触发、且目标确实在前台时才发空格，避免误发给游戏。
-        if trigger == Trigger::Hotkey && window::foreground() == target && media::send_space() {
-            return true;
-        }
-
-        crate::logline!("媒体会话不可用，尝试向目标窗口投递空格");
+        crate::logline!("媒体会话不可用，向目标窗口投递空格");
         media::post_space(target)
     }
 
     fn hide_target(&mut self, target: HWND) {
         let _ = window::drop_topmost(target);
+
+        // 最大化窗口无法用 SetWindowPos 移动，先还原。
+        window::restore_if_needed(target);
 
         if self.config.layout.hide_mode == "minimize" {
             unsafe {
@@ -339,6 +364,10 @@ impl Controller {
         if let Err(err) = window::place_passive(target, &hidden) {
             crate::logline!("移出屏幕失败: {err:#}");
         }
+        // 部分应用（例如抖音）会在激活变化后自行重新置顶，移动完成后再清一次。
+        let _ = window::drop_topmost(target);
+        let rect = window::window_rect(target);
+        crate::logline!("目标窗口已隐藏 rect={:?}", rect);
         self.target_restore = Some(restore);
     }
 
