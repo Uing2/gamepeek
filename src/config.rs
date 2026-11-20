@@ -211,7 +211,7 @@ mod tests {
     fn default_config_round_trips() {
         let text = toml::to_string_pretty(&Config::default()).unwrap();
         let parsed: Config = toml::from_str(&text).unwrap();
-        assert_eq!(parsed.hotkey, "F8");
+        assert_eq!(parsed.hotkey, "Alt+W");
         assert_eq!(parsed.game.process, "cs2.exe");
         assert_eq!(parsed.layout.width, 480);
     }
