@@ -1,4 +1,7 @@
 /target
 /dist
 /assets/icons
+/docs
+/PROJECT.md
+/DEVELOPMENT.md
 **/*.rs.bk

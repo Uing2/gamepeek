@@ -92,11 +92,6 @@ cargo build --release
 
 产物在 `target/release/gamepeek.exe`（或上面 `CARGO_TARGET_DIR` 下的 `release` 目录）。
 
-## 文档
-
-- [项目文档](PROJECT.md)：背景、调研、交互流程、边界情况、验收标准
-- [开发手册](DEVELOPMENT.md)：架构、模块实现、调试工具、测试方案
-
 ## 已知限制
 
 - 只处理首版目标：CS2 + 抖音桌面客户端，其他组合需要改配置，尚未做 profile 管理。
