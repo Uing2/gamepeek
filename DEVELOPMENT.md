@@ -251,7 +251,7 @@ pub struct Config {
 
 ```rust
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    RegisterHotKey, UnregisterHotKey, MOD_ALT, MOD_NOREPEAT, VK_C,
+    RegisterHotKey, UnregisterHotKey, MOD_ALT, MOD_NOREPEAT, VK_W,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetMessageW, TranslateMessage, MSG, WM_HOTKEY,
@@ -260,7 +260,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 const HOTKEY_ID: i32 = 1;
 
 pub unsafe fn run_loop(hwnd: windows::Win32::Foundation::HWND) -> anyhow::Result<()> {
-    RegisterHotKey(hwnd, HOTKEY_ID, MOD_ALT | MOD_NOREPEAT, VK_C.0 as u32)?;
+    RegisterHotKey(hwnd, HOTKEY_ID, MOD_ALT | MOD_NOREPEAT, VK_W.0 as u32)?;
     let mut msg = MSG::default();
     while GetMessageW(&mut msg, None, 0, 0).as_bool() {
         if msg.message == WM_HOTKEY && msg.wParam.0 as i32 == HOTKEY_ID {
@@ -850,7 +850,7 @@ cargo build --release
 
 直接双击 `gamepeek.exe`，托盘会出现图标：
 
-- 左键或 `Alt+C`：切换游戏 / 抖音
+- 左键或 `Alt+W`：切换游戏 / 抖音
 - 右键：切换、打开配置、打开日志目录、退出
 
 运行时的文件都在 `%LOCALAPPDATA%\GamePeek`：

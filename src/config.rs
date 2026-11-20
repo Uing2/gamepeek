@@ -77,7 +77,7 @@ pub struct AppConfig {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            hotkey: "Alt+C".into(),
+            hotkey: "Alt+W".into(),
             game: GameConfig::default(),
             target: TargetConfig::default(),
             layout: LayoutConfig::default(),
